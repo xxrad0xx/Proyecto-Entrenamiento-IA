@@ -1,27 +1,26 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from .ml_model import predecir_fahrenheit, obtener_historial
 
 def home(request):
     resultado = None
 
     if request.method == "POST":
-        valor = request.POST.get("valor")
-        if valor:
-            resultado = predecir_fahrenheit(valor)
+        # Tu formulario usa name="celsius" (ajustamos para que coincida)
+        valor = request.POST.get("celsius") or request.POST.get("valor")
+        if valor is not None and str(valor).strip() != "":
+            try:
+                resultado = predecir_fahrenheit(valor)
+            except ValueError:
+                resultado = None  # Manejo simple si llega algo no numérico
 
     contexto = {
         "resultado": resultado,
     }
-
     return render(request, "home.html", contexto)
 
 def about(request):
     historial = obtener_historial()
-
-    # Manejo seguro: si no existe "loss", devolvemos lista vacía
     history = historial.get("loss", [])
-
-    # Cantidad de epochs = número de valores de loss
     epochs = len(history)
 
     return render(request, "about.html", {
@@ -29,15 +28,28 @@ def about(request):
         "epochs": epochs,
     })
 
-
 def convert(request):
     if request.method == "POST":
-        celsius = float(request.POST.get("celsius"))
-        fahrenheit = celsius * 1.8 + 32
+        valor = request.POST.get("celsius")
+        if valor is None or str(valor).strip() == "":
+            return redirect('/')
+
+        try:
+            celsius = float(valor)
+        except ValueError:
+            return redirect('/')
+
+        fahrenheit = predecir_fahrenheit(celsius)
+
+        # Si tu result.html NO usa gráfico, puedes omitir 'history' y 'epochs'
+        historial = obtener_historial()
+        history = historial.get("loss", [])
+        epochs = len(history)
 
         return render(request, "result.html", {
             "celsius": celsius,
-            "fahrenheit": round(fahrenheit, 2)
+            "fahrenheit": fahrenheit,
+            "history": history,
+            "epochs": epochs,
         })
-    else:
-        return render(request, "index.html")
+    return redirect('/')
