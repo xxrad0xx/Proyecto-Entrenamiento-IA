@@ -1,1 +1,1 @@
-web: gunicorn ProyectoEntrenamientoIA.wsgi
+web: gunicorn tempweb.wsgi:application
